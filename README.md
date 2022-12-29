@@ -1,7 +1,7 @@
 # JustTextData для foobar2000 с WSH Panel Mod
 Простой скрипт для WSH Panel Mod, который просто выводит обложку, название, альбом и автора музыки.
 
-![Alt text](screenshot.jpg?raw=true "Optional Title")
+![Alt text](screenshot.jpg?raw=true "screenshot :|")
 
 # Зачем?
 После последнего обновления WinAMP, какой-то плагин решил выдавать ошибки и крашить весь WinAMP. 
