@@ -53,29 +53,35 @@ var IDC_HAND = 32649;
 
 var g_instancetype = window.InstanceType;
 var g_font = null;
-var g_text = "Create your script\nClick here to open the editor.";
+var g_name = "nil";
+var g_album = "nil";
+var g_artist = "nil";
 var g_cover = null;
 var ww = 0, wh = 0;
 var g_textcolor = 0, g_textcolor_hl = 0;
 var g_backcolor = 0;
 var g_hot = false;
+var g_text_indent_x = 0;
+var g_cur_time = -1;
+var def_indent = 14;
+var def_cover_height = 128;
 
 function on_playback_new_track(metadb) {
     //name
-    var artist = fb.TitleFormat("%artist%").Eval(true)
-    var album = fb.TitleFormat("%album%").Eval(true)
-    var track_name = fb.TitleFormat("%Title%").Eval(true);
-
-    //artist = replace_it(artist)
-   // album = replace_it(album)
-    //track_name = replace_it(track_name)
+    g_artist = fb.TitleFormat("%artist%").Eval(true);
+    g_album = fb.TitleFormat("%album%").Eval(true);
+    g_name = fb.TitleFormat("%Title%").Eval(true);
     
-    g_text = track_name + "\n" + album + "\n" + artist
+    if (g_artist == "?")
+        g_artist = ""
+    if (g_album == "?")
+        g_album = ""
+    if (g_name == "?")
+        g_name = "nil"
     
     //cover art
     g_cover = get_cover(fb.GetNowPlaying())
-    
-    
+
     window.Repaint();
 }
 
@@ -115,43 +121,141 @@ function get_cover(db)
 {
     if (db)
     {
-        return utils.GetAlbumArtV2(db, 0, false);
+        var cover = utils.GetAlbumArtV2(db, 0, false);
+        if ( cover )
+        {
+            g_text_indent_x = (cover.Width * def_cover_height)/cover.Height + def_indent;
+            return cover
+        }
+        g_text_indent_x = 0
     }
     return false
 }
 
+function two_zero(num)
+{
+    var result = num.toString();
+    if (result.length < 2)
+    {
+        result = "0" + result;
+    }
+    return result;
+}
+
+function get_time(time)
+{
+    var minu = 0;
+    var secu = 0;
+    
+    minu = Math.floor(time / 60);
+    secu = Math.floor(time) - (60 * minu);
+    
+    return minu + ":" + two_zero(secu);
+}
+
 function on_paint(gr) {
-    var indent_x = 0
+    var indent_x = 0;
     var text_color = g_hot ? g_textcolor_hl : g_textcolor;
     gr.FillSolidRect(0, 0, ww, wh, g_backcolor);
-    //img
+    
+    if (!fb.GetNowPlaying())
+        return;
+    //cover
     if (g_cover)
     {
         var cover_height = 128;
         var cover_width = (g_cover.Width * cover_height)/g_cover.Height;
         gr.DrawImage(g_cover, 0, 0, cover_width, cover_height, 0, 0, g_cover.Width, g_cover.Height, 0, 255);
-        indent_x = cover_width + 14
     }
     //text
     
-    gr.GdiDrawText(g_text, g_font, text_color, indent_x, 0, ww, wh, DT_TOP | DT_WORD_ELLIPSIS );
+    gr.GdiDrawText(g_name, g_font, text_color, g_text_indent_x, 0, ww, wh, DT_TOP | DT_WORD_ELLIPSIS );
+    gr.GdiDrawText(g_album, g_font, text_color, g_text_indent_x, 16, ww, wh, DT_TOP | DT_WORD_ELLIPSIS );
+    gr.GdiDrawText(g_artist, g_font, text_color, g_text_indent_x, 32, ww, wh, DT_TOP | DT_WORD_ELLIPSIS );
+    
+    //time
+    text_time = get_time(fb.PlaybackTime) + " / " + get_time(fb.PlaybackLength);
+    gr.GdiDrawText(text_time, g_font, text_color, g_text_indent_x, 96, ww, wh, DT_TOP | DT_WORD_ELLIPSIS );
+    
+    //line
+    var full_line_w = ww-g_text_indent_x-def_indent;
+    var passed_line_w = (fb.PlaybackTime*full_line_w)/fb.PlaybackLength;
+    
+    gr.FillSolidRect(g_text_indent_x, 115 , passed_line_w, 5, text_color);
+    gr.FillSolidRect(g_text_indent_x, 120 , full_line_w, 2, text_color);
+    
+    //curtime
+    if ( g_cur_time == -1 )
+        return;
+    var cur_line_w = (g_cur_time*full_line_w)/fb.PlaybackLength;
+    gr.FillSolidRect(g_text_indent_x+cur_line_w, 126 , 1, 16, text_color);
+    gr.GdiDrawText(get_time(g_cur_time), g_font, text_color, g_text_indent_x+cur_line_w-8, 148, ww, wh, DT_TOP | DT_WORD_ELLIPSIS );
+}
+
+function copy_2_сlipboard(text)
+{
+   //idk how to copy to Windows clipboard 
 }
 
 function on_mouse_lbtn_up(x, y) {
-    window.ShowConfigure();
+    if (y>128)
+    {
+        window.ShowConfigure();
+        return;
+    }
+    if (y>110 && y<128)
+    {
+        if (x>=g_text_indent_x && x<=ww-def_indent)
+        {
+            //change playtime
+            var click_x = x-g_text_indent_x;
+            var max_x = ww-g_text_indent_x-def_indent;
+            fb.PlaybackTime = fb.PlaybackLength * click_x / max_x
+            window.Repaint();
+        }
+    }
+    if (y>0 && y<16 && x>g_text_indent_x)
+        copy_2_сlipboard(g_name);
+    if (y>16 && y<32 && x>g_text_indent_x)
+        copy_2_сlipboard(g_album);
+    if (y>32 && y<48 && x>g_text_indent_x)
+        copy_2_сlipboard(g_artist);
 }
 
-function on_mouse_move() {
+function on_mouse_move(x,y) {
     if (!g_hot) {
         window.SetCursor(IDC_HAND);
         g_hot = true;
         window.Repaint();
+    }
+    if (y>110 && y<128)
+    {
+        if (x>=g_text_indent_x && x<=ww-def_indent)
+        {
+            var click_x = x-g_text_indent_x;
+            var max_x = ww-g_text_indent_x-def_indent;
+            g_cur_time = fb.PlaybackLength * click_x / max_x
+            window.Repaint();
+        }
+    }
+    else
+    {
+        if ( g_cur_time != -1 )
+        {
+            g_cur_time = -1
+            window.Repaint();
+        }
     }
 }
 
 function on_mouse_leave() {
     if (g_hot) {
         g_hot = false;
+        window.Repaint();
+    }
+    if ( g_cur_time != -1 )
+    {
+        g_cur_time = -1
         window.Repaint();
     }
 }
@@ -164,4 +268,8 @@ function on_font_changed() {
 function on_colors_changed() {
     get_colors();
     window.Repaint();
+}
+
+function on_playback_time(time){
+   window.Repaint();
 }
