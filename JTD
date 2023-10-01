@@ -85,6 +85,8 @@ function on_playback_new_track(metadb) {
     window.Repaint();
 }
 
+on_playback_new_track();
+
 function get_font() {
     if (g_instancetype == 0) { // CUI
         g_font = window.GetFontCUI(FontTypeCUI.items);
@@ -158,8 +160,9 @@ function on_paint(gr) {
     var text_color = g_hot ? g_textcolor_hl : g_textcolor;
     gr.FillSolidRect(0, 0, ww, wh, g_backcolor);
     
-    if (!fb.GetNowPlaying())
+    if (!fb.GetNowPlaying() || fb.PlaybackLength <= 0)
         return;
+    
     //cover
     if (g_cover)
     {
